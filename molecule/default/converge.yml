@@ -1,0 +1,20 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  pre_tasks:
+    - name: Update apt
+      ansible.builtin.apt:
+        update_cache: yes
+        cache_valid_time: 3600
+  tasks:
+    - include_role:
+        name: sui
+    # include again to test catch all vars
+    - include_role:
+        name: sui
+#    # remove sui
+#    - include_role:
+#        name: sui
+#      vars:
+#        role_action: 'remove'

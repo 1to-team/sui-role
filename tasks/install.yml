@@ -1,0 +1,179 @@
+---
+- name: Remove old repo list
+  file:
+    path: /etc/apt/sources.list.d/docker.list
+    state: absent
+- name: Install needed packages
+  apt:
+    name:
+      - git
+      - python3-pexpect
+    state: present
+    update_cache: True
+- name: Install docker
+  include_role:
+    name: geerlingguy.docker
+  vars:
+    docker_install_compose: false
+    docker_daemon_options:
+      log-driver: "journald"
+- name: Ensure no system docker-compose installed
+  package:
+    name: docker-compose
+    state: absent
+
+- name: Create sui user
+  user:
+    name: "{{ sui_user }}"
+    groups:
+      - sudo
+      - docker
+    state: present
+    shell: /bin/bash
+    system: yes
+    home: "{{ sui_home }}"
+
+- name: Check migration
+  include_tasks: migrations.yml
+
+- block:
+  - name: Checkout sui repo
+    ansible.builtin.git:
+      repo: "https://github.com/MystenLabs/sui.git"
+      dest: "{{ sui_home }}/sui"
+      version: "{{ sui_version }}"
+    notify:
+      - Clean sui DB
+      - Restart sui
+
+  - name: Building sui tools (can take a while)...
+    debug: msg=""
+
+  - name: Build sui tools docker image
+    command: "./build.sh -t sui-tools-builder"
+    args:
+      chdir: "{{ sui_home }}/sui/docker/sui-tools"
+    changed_when: false
+
+  - name: Export sui binraies
+    shell: |
+      docker create --name="sui_extract" "sui-tools-builder"
+      docker export "sui_extract" | tar xv --wildcards 'usr/local/bin/sui*'
+      docker rm "sui_extract"
+      docker rmi "sui-tools-builder"
+    args:
+      executable: /bin/bash
+      chdir: "{{ sui_home }}/sui/docker/sui-tools"
+    changed_when: false
+    register: build_results
+    become_user: "root"
+
+  - name: Find exported files
+    find:
+      paths: "{{ sui_home }}/sui/docker/sui-tools/usr/local/bin"
+      recurse: yes
+    register: exported
+
+  - name: "Copy exported file to {{ sui_install_path }}"
+    copy:
+      remote_src: true
+      src: "{{ item.path }}"
+      dest: "{{ sui_install_path }}/"
+      owner: root
+      mode: 0755
+    with_items: "{{ exported.files }}"
+    become_user: "root"
+    notify:
+      - Clean sui DB
+      - Restart sui
+
+  - name: Remove exported folder
+    file:
+      path: "{{ sui_home }}/sui/docker/sui-tools/usr"
+      state: absent
+    become_user: "root"
+    changed_when: false
+
+  - name: Make sure .sui folder exists
+    file:
+      path: "{{ sui_node_home }}"
+      state: directory
+
+  - name: Download genesis file
+    get_url:
+      url: "https://github.com/MystenLabs/sui-genesis/raw/main/devnet/genesis.blob"
+      dest: "{{ sui_genesis_path }}"
+      force: true
+    notify:
+      - Clean sui DB
+      - Restart sui
+
+  - name: Copy fullnode-template
+    copy:
+      remote_src: true
+      src: "{{ sui_home }}/sui/crates/sui-config/data/fullnode-template.yaml"
+      dest: "{{ sui_node_home }}/fullnode-template.yaml"
+    register: template_copy_result
+
+  - name: Check config exists
+    stat:
+      path: "{{ sui_node_home }}/fullnode.yaml"
+    register: fullnode_file
+
+  - name: Recreate template if cahnged
+    copy:
+      remote_src: true
+      src: "{{ sui_node_home }}/fullnode-template.yaml"
+      dest: "{{ sui_node_home }}/fullnode.yaml"
+    when: template_copy_result.changed or not fullnode_file.stat.exists
+    notify: Restart sui
+
+  - name: Set fullnode config values
+    ansible.builtin.lineinfile:
+      path: "{{ sui_node_home }}/fullnode.yaml"
+      regexp: "{{ item.regex }}"
+      line: "{{ item.value }}"
+      backrefs: true
+    loop:
+      - { regex: '^(\s*)db-path:', value: '\1db-path: "{{ sui_db_path }}"' }
+      - { regex: '^(\s*)genesis-file-location:', value: '\1genesis-file-location: "{{ sui_genesis_path }}"' }
+      - { regex: '^(\s*)metrics-address:', value: '\1metrics-address: "{{ sui_metrics_address }}"'}
+      - { regex: '^(\s*)json-rpc-address:', value: '\1json-rpc-address: "{{ sui_json_rpc_address }}"'}
+    notify: Restart sui
+
+  become: yes
+  become_user: "{{ sui_user }}"
+
+- name: Store sui systemd job
+  template:
+    src: "sui.service.j2"
+    dest: "/etc/systemd/system/sui.service"
+  notify:
+    - Restart sui
+
+- meta: flush_handlers
+
+- name: Ensure service is running and enabled
+  service:
+    name: "sui"
+    state: started
+    enabled: true
+
+- name: Process accounts
+  include_tasks: accounts.yml
+
+- name: Setup monitoring
+  include_tasks: setup_monitoring.yml
+  when: node_mon_url is defined
+
+- name: Store snippets
+  set_fact:
+    snippets:
+      - name: "sui logs"
+        value: "journalctl -u sui -n 100 -f"
+      - name: "sui version"
+        value: "sui --version"
+      - name: "get addresses"
+        value: "sui keytool list"
+      - name: "stop sui node"
+        value: "systemctl stop sui"

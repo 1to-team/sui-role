@@ -1,0 +1,17 @@
+---
+- name: Remove systemd service
+  file:
+    path: "/etc/systemd/system/sui.service"
+    state: absent
+
+- name: Remove sui user
+  user:
+    name: "{{ sui_user }}"
+    home: "{{ sui_home }}"
+    state: absent
+    remove: true
+
+- name: Include node-mon
+  include_role:
+    name: "node-mon"
+  when: node_mon_url is defined

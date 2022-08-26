@@ -1,0 +1,3 @@
+UserParameter=sui_rpc[*], curl -s -X POST http://127.0.0.1:{{ sui_json_rpc_port }} -H 'Content-Type: application/json' -d '{"jsonrpc": "2.0", "method": "$1", "id": 1}'
+UserParameter=sui_metrics[*], curl -s http://127.0.0.1:{{ sui_metrics_port }}/metrics
+UserParameter=sui_version[*], sui --version

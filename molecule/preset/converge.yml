@@ -1,0 +1,23 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  pre_tasks:
+    - name: Update apt
+      ansible.builtin.apt:
+        update_cache: yes
+        cache_valid_time: 3600
+  tasks:
+    - include_role:
+        name: sui
+      vars:
+        sui_accounts:
+          - "baeb7f2e037fda1ff67002d89b691c24e07cb0b4"
+          - "b21e56d52f6f897c3d8996dafaa617ba910e68ff"
+          - "a19bf219ad3adf33c580363bd9ab569b0a5aeb01"
+        sui_privates:
+          - "tuQP6rnm6e8AOgyQVqfqczP+SQ5BOcACkDLHd9FvHZUdVMQvzldO0yB3ftZYz8QIu5Q2+1Xd7SxRmuieNXPfgQ=="
+          - "DgxQEKGtXyrLz4GDEfTiS19oLB/+GEEXP8/sMuHo9tgD8sv6sOwcUFIfobW8jTZh5Fan/hjfPev12yP8hQxBlQ=="
+          - "YhgWgSX2I5FnBAQ/IjGLZhTH3hB9Due+cJev3VvfzeBFA+iqZensszGLuNU0x3dIiS/umLgzdriZQDpopUOKdA=="
+    - include_role:
+        name: sui

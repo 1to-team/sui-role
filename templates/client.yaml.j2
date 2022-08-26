@@ -1,0 +1,8 @@
+---
+accounts:
+{{ sui_accounts | to_nice_yaml | indent(2, True) -}}
+keystore:
+  File: {{ sui_keystore_path }}
+gateway:
+  rpc: "{{ sui_rpc_gateway }}"
+active_address: "0x{{ sui_active_account }}"

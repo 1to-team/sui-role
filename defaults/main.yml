@@ -1,0 +1,38 @@
+---
+# Run a node as this system user
+sui_user: "sui"
+# Sui user home directory
+sui_home: "/var/lib/{{ sui_user }}"
+# Path to install sui binaries
+sui_install_path: "/usr/local/bin"
+# Sui repo branch to build
+sui_version: "devnet"
+# Memory limit for sui node process
+sui_memory_limit: "{{ (ansible_memtotal_mb/2)|int }}"
+# Sui datadir path
+sui_node_home: "{{ sui_home }}/.sui"
+# Sui DB path
+sui_db_path: "{{ sui_node_home }}/db"
+# Genesis path
+sui_genesis_path: "{{ sui_node_home }}/genesis.blob"
+# Metrics listen port
+sui_metrics_port: 9184
+# Metrics listen address
+sui_metrics_address: "0.0.0.0:{{ sui_metrics_port }}"
+# # JSON RPC listen port
+sui_json_rpc_port: 9000
+# JSON RPC listen address
+sui_json_rpc_address: "0.0.0.0:{{ sui_json_rpc_port }}"
+
+# Sui accounts (format: '["53b9b...15edd841"]')
+#sui_accounts:
+# Sui private keys for accounts (foramt: '["fZ7zu...1Tisfg=="]')
+#sui_privates:
+# Active account (by default first one)
+sui_active_account: "{{ sui_accounts[0] }}"
+# Sui Gateway URL
+sui_rpc_gateway: "https://gateway.devnet.sui.io:443"
+# Sui client config path 
+sui_client_config_path: "{{ sui_node_home }}/sui_config/client.yaml"
+# Sui keystore path
+sui_keystore_path: "{{ sui_node_home }}/sui_config/sui.keystore"

@@ -1,0 +1,9 @@
+- name: Add zabbix user to systemd-journal group
+  user:
+    name: "zabbix"
+    groups: ["systemd-journal"]
+    append: yes
+
+- name: Include node-mon
+  include_role:
+    name: "node-mon"

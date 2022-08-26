@@ -1,0 +1,17 @@
+- name: Get current version
+  command: "{{ sui_install_path }}/sui --version"
+  ignore_errors: true
+  changed_when: false
+  register: current_version_raw
+
+- set_fact:
+    current_version: "{{ current_version_raw.stdout|replace('sui ', '') }}"
+  when: current_version_raw is succeeded
+
+#- name: Migrate from <0.6.1
+#  block:
+#    - name: Remove DB
+#      file:
+#        path: "{{ sui_db_path }}"
+#        state: absent
+#  when: current_version is defined and current_version is version('0.6.1', '<')

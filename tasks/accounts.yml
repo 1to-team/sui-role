@@ -1,0 +1,64 @@
+- name: Check client config exists
+  stat:
+    path: "{{ sui_client_config_path }}"
+  register: client_config_stat
+
+- name: Generate client config
+  expect:
+    command: "{{ sui_install_path }}/sui client"
+    chdir: "{{ sui_home }}"
+    responses:
+      " doesn't exist, do you want to connect to a Sui RPC server ": "y"
+      "Sui RPC server Url ": ""
+    creates: "{{ sui_client_config_path }}"
+  become_user: "{{ sui_user }}"
+  become: true
+
+- name: Download client config
+  slurp:
+    src: "{{ sui_client_config_path }}"
+  register: client_config
+
+- name: Download keystore config
+  slurp:
+    src: "{{ sui_keystore_path }}"
+  register: keystore_config
+
+- name: Check accounts the same if client config was exists
+  ansible.builtin.assert:
+    that: "(client_config.content | b64decode | from_yaml)['accounts'] == sui_accounts"
+    fail_msg: "Your current client config contains another accounts"
+  when: client_config_stat.stat.exists and sui_accounts is defined
+
+- name: Store variables
+  set_fact:
+    sui_accounts: "{{ (client_config.content | b64decode | from_yaml)['accounts'] }}"
+    sui_active_account: "{{ (client_config.content | b64decode | from_yaml)['active_address'] | replace('0x', '') }}"
+    sui_privates: "{{ keystore_config.content | b64decode }}"
+    store_variables:
+        - name: "sui_accounts"
+          value:  "'{{ (client_config.content | b64decode | from_yaml)['accounts'] | to_json }}'"
+        - name: "sui_active_account"
+          value:  "{{ (client_config.content | b64decode | from_yaml)['active_address'] | replace('0x', '') | to_json }}"
+        - name: "sui_privates"
+          value:  "'{{ keystore_config.content | b64decode | from_json | to_json }}'"
+  when: sui_accounts is not defined
+
+- name: Check accounts consistence
+  ansible.builtin.assert:
+    that:
+      - sui_active_account in sui_accounts
+      - sui_accounts|length == sui_privates|length
+    fail_msg: "Active account must be one of sui_accounts and sui_accounts len must equal sui_privates len"
+
+- name: Save client config
+  template:
+    src: client.yaml.j2
+    dest: "{{ sui_client_config_path }}"
+  notify: "Restart sui"
+
+- name: Save keystore
+  copy:
+    content: "{{ sui_privates | to_nice_json(2) }}"
+    dest: "{{ sui_keystore_path }}"
+  notify: "Restart sui"

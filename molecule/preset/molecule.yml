@@ -1,0 +1,21 @@
+---
+dependency:
+  name: galaxy
+driver:
+  name: vagrant
+platforms:
+  - name: instance
+    box: ubuntu/focal64
+    memory: 4096
+    cpus: 4
+provisioner:
+  name: ansible
+  lint:
+    name: ansible-lint
+  config_options:
+    defaults:
+      allow_world_readable_tmpfiles: true
+verifier:
+  name: ansible
+ansible:
+  sudo: True

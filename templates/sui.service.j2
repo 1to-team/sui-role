@@ -1,0 +1,14 @@
+[Unit]
+Description=Sui node
+After=network-online.target
+
+[Service]
+User={{ sui_user }}
+ExecStart={{ sui_install_path }}/sui-node --config-path {{ sui_node_home }}/fullnode.yaml
+Restart=on-failure
+RestartSec=3
+LimitNOFILE=65535
+MemoryLimit={{ sui_memory_limit }}M
+
+[Install]
+WantedBy=multi-user.target

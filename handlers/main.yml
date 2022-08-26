@@ -1,0 +1,9 @@
+---
+- name: "Clean sui DB"
+  file:
+    path: "{{ sui_db_path }}"
+    state: absent
+- name: "Restart sui"
+  service:
+    name: "sui"
+    state: restarted

@@ -1,0 +1,18 @@
+---
+- name: Include install tasks
+  include_tasks: install.yml
+  when:
+    - role_action|default('install') == 'install'
+
+- name: Include stop tasks
+  include_tasks: stop.yml
+  when:
+    - role_action is defined
+    - role_action == 'stop' or role_action == 'remove'
+
+- name: Include remove tasks
+  include_tasks: remove.yml
+  when:
+    - role_action is defined
+    - role_action == 'remove'
+
